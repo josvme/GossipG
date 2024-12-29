@@ -1,5 +1,7 @@
 { pkgs, lib, config, inputs, ... }:
-
+let
+  pkgs-unstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.system; };
+  in
 {
   # https://devenv.sh/basics/
   env.GREET = "devenv";
@@ -10,7 +12,7 @@
    pkgs.protoc-gen-go
    pkgs.protobuf
    pkgs.protoc-gen-go-grpc
-   pkgs.maelstrom-clj
+   pkgs-unstable.maelstrom-clj
    ];
 
   # https://devenv.sh/languages/
@@ -29,7 +31,7 @@
 
   enterShell = ''
     hello
-    git --version
+    echo "${pkgs-unstable.maelstrom-clj}"
   '';
 
   # https://devenv.sh/tasks/
