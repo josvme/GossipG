@@ -23,13 +23,13 @@ type ILogs interface {
 
 type Logs struct {
 	store map[string]ILog
-	mu    sync.Mutex
+	mu    sync.RWMutex
 }
 
 func newLogs() ILogs {
 	return &Logs{
 		store: make(map[string]ILog),
-		mu:    sync.Mutex{},
+		mu:    sync.RWMutex{},
 	}
 }
 
@@ -43,7 +43,7 @@ func newLog(name string) ILog {
 		nextOffset:   0,
 		commitOffset: 0,
 		kv:           make(map[int]int),
-		mu:           sync.Mutex{},
+		mu:           sync.RWMutex{},
 	}
 }
 
@@ -60,13 +60,13 @@ func (l *Logs) send(key string, msg int) int {
 
 func (l *Logs) poll(offsets map[string]int) map[string][][]int {
 	results := make(map[string][][]int)
-	l.mu.Lock()
+	l.mu.RLock()
 	for k, o := range offsets {
 		if _, ok := l.store[k]; ok {
 			results[k] = l.store[k].get(o)
 		}
 	}
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return results
 }
 
@@ -86,13 +86,13 @@ func (l *Logs) commit(offsets map[string]int) error {
 
 func (l *Logs) committedOffset(keys []string) map[string]int {
 	results := make(map[string]int)
-	l.mu.Lock()
+	l.mu.RLock()
 	for _, v := range keys {
 		if _, ok := l.store[v]; ok {
 			results[v] = l.store[v].committedOffset()
 		}
 	}
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return results
 }
 
@@ -101,7 +101,7 @@ type Log struct {
 	nextOffset   int
 	commitOffset int
 	kv           map[int]int
-	mu           sync.Mutex
+	mu           sync.RWMutex
 }
 
 func (l *Log) append(msg int) int {
@@ -116,7 +116,7 @@ func (l *Log) get(o int) [][]int {
 	offset := min(1, o)
 	i := 0
 	results := make([][]int, 0)
-	l.mu.Lock()
+	l.mu.RLock()
 	for v, ok := l.kv[i+offset]; ok; {
 		results = append(results, []int{offset + i, v})
 		i += 1
@@ -124,7 +124,7 @@ func (l *Log) get(o int) [][]int {
 			break
 		}
 	}
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return results
 }
 
@@ -136,9 +136,9 @@ func (l *Log) commit(offset int) error {
 }
 
 func (l *Log) committedOffset() int {
-	l.mu.Lock()
+	l.mu.RLock()
 	off := l.commitOffset
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return off
 }
 

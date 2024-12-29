@@ -24,7 +24,7 @@ type Log struct {
 }
 type Logs struct {
 	store *maelstrom.KV
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	index map[string]*Log
 }
 
@@ -53,7 +53,7 @@ func (l *Logs) send(ctx context.Context, key string, msg int) int {
 
 func (l *Logs) poll(ctx context.Context, offsets map[string]int) map[string][][]int {
 	results := make(map[string][][]int)
-	l.mu.Lock()
+	l.mu.RLock()
 	for k, o := range offsets {
 		if _, ok := l.index[k]; ok {
 			tmp := make([][]int, 0)
@@ -73,7 +73,7 @@ func (l *Logs) poll(ctx context.Context, offsets map[string]int) map[string][][]
 			results[k] = tmp
 		}
 	}
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return results
 }
 
@@ -90,13 +90,13 @@ func (l *Logs) commit(ctx context.Context, offsets map[string]int) error {
 
 func (l *Logs) committedOffset(ctx context.Context, keys []string) map[string]int {
 	results := make(map[string]int)
-	l.mu.Lock()
+	l.mu.RLock()
 	for _, v := range keys {
 		if _, ok := l.index[v]; ok {
 			results[v] = l.index[v].committedOffset
 		}
 	}
-	l.mu.Unlock()
+	l.mu.RUnlock()
 	return results
 }
 
@@ -106,7 +106,7 @@ func main() {
 	ctx := context.Background()
 	var logs ILogs = &Logs{
 		store: kv,
-		mu:    sync.Mutex{},
+		mu:    sync.RWMutex{},
 		index: make(map[string]*Log),
 	}
 
